@@ -1,0 +1,7 @@
+{
+  "name": "jb-plugin",
+  "description": "One-command deployment: commit, push, PR, monitor Vercel, auto-fix build failures",
+  "author": {
+    "name": "Jaswanth"
+  }
+}
