@@ -1,15 +1,56 @@
-# jb-plugin
+# JB Plugin Marketplace
 
-One-command deployment automation for Claude Code. Commit, push, create PR, monitor Vercel deployment, and auto-fix build failures — all from a single `/ship` command.
+A custom Claude Code plugin marketplace.
 
-## Commands
+## Plugins
 
-| Command | Description |
-|---------|-------------|
-| `/ship` | Full pipeline: commit -> push -> PR -> monitor deployment -> auto-fix failures |
-| `/deploy-status [pr#]` | Check current deployment status and show errors |
+| Plugin | Description |
+|--------|-------------|
+| **jb-ship** | One-command deployment: commit, push, PR, monitor Vercel, auto-fix build failures |
 
-## How it works
+## Installation
+
+### 1. Add this marketplace (once)
+
+In Claude Code, run:
+
+```
+/plugin marketplace add jb-marketplace --source github --repo Jaswanth0709/jb-plugin
+```
+
+### 2. Install a plugin
+
+```
+/plugin install jb-ship@jb-marketplace
+```
+
+### 3. Setup Vercel MCP (once per project)
+
+```bash
+claude mcp add --transport http vercel https://mcp.vercel.com
+```
+
+Then authenticate by typing `/mcp` in Claude Code.
+
+### Prerequisites
+
+- **gh CLI**: Must be installed and authenticated (`gh auth login`)
+- **Vercel**: Project must be connected to Vercel via GitHub integration
+
+## Usage
+
+```
+# Full pipeline: commit -> push -> PR -> monitor -> auto-fix
+/ship
+
+# Check deployment status anytime
+/deploy-status
+/deploy-status 42    # check specific PR
+```
+
+## Plugin: jb-ship
+
+### How it works
 
 ```
 /ship
@@ -31,49 +72,16 @@ One-command deployment automation for Claude Code. Commit, push, create PR, moni
                 +-- Resume polling
 ```
 
-## Setup
+### What gets auto-fixed
 
-### 1. Install the plugin
-
-```bash
-# In Claude Code, from any project:
-/plugin install /Users/mj/Desktop/jb-plugin
-```
-
-### 2. Add Vercel MCP (once per project)
-
-```bash
-claude mcp add --transport http vercel https://mcp.vercel.com
-```
-
-Then authenticate by typing `/mcp` in Claude Code.
-
-### 3. Prerequisites
-
-- **gh CLI**: Must be installed and authenticated (`gh auth login`)
-- **Vercel**: Project must be connected to Vercel via GitHub integration
-
-## Usage
-
-```bash
-# Make your code changes, then:
-/ship
-
-# Check deployment status anytime:
-/deploy-status
-/deploy-status 42    # check specific PR
-```
-
-## What gets auto-fixed
-
-The deployment monitor can automatically fix:
 - TypeScript compilation errors
 - ESLint errors
 - Import/export issues
 - Missing type annotations
 - Build configuration issues
 
-It will NOT attempt to fix:
+### What it will NOT fix
+
 - Environment variable issues
 - External service failures
 - Vercel platform issues
