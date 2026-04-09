@@ -1,0 +1,15 @@
+{
+  "name": "jb-marketplace",
+  "description": "Jaswanth's custom Claude Code plugins for deployment automation",
+  "owner": {
+    "name": "Jaswanth"
+  },
+  "plugins": [
+    {
+      "name": "jb-ship",
+      "description": "One-command deployment: commit, push, PR, monitor Vercel, auto-fix build failures",
+      "source": "./plugins/jb-ship",
+      "category": "development"
+    }
+  ]
+}
