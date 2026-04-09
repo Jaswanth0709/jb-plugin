@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Commit, push, create PR, and monitor Vercel deployment with auto-fix on failure
+description: Commit, push, monitor Vercel preview deployment, and create PR only after user verifies
 allowed-tools: [Bash, Agent]
 ---
 
@@ -27,7 +27,14 @@ Based on the above context, execute the full deployment pipeline:
 - Push to the current branch with `-u` flag: `git push -u origin <branch>`
 - If already up to date, continue to Step 3
 
-### Step 3: Create PR (if needed)
+### Step 3: Monitor Preview Deployment
+- Spawn a background agent using the `deployment-monitor` agent type
+- Pass it the branch name so it can monitor the Vercel preview deployment
+- Tell the agent: "Monitor the Vercel preview deployment for branch '<branch>'. Poll every 30 seconds using `gh api repos/{owner}/{repo}/deployments` or check Vercel deployment status. If deployment fails, fetch build logs, fix the code, commit, push, and retry (max 3 attempts). If deployment succeeds, extract the Vercel preview URL and share it with the user. Ask them to test the preview to verify their changes work correctly."
+- **STOP HERE and wait** for the background agent to complete and for the user to test the preview
+
+### Step 4: Create PR (only after user confirms changes look good)
+- This step runs ONLY after the user has tested the preview and confirmed it looks good
 - Check the "Existing PRs" context above
 - If a PR already exists for this branch, skip PR creation and note the existing PR URL
 - If no PR exists, create one:
@@ -37,8 +44,8 @@ Based on the above context, execute the full deployment pipeline:
   <bullet points summarizing changes>
 
   ## Test plan
-  - [ ] Vercel preview deployment passes
-  - [ ] Manual verification of changes
+  - [x] Vercel preview deployment passes
+  - [x] Manual verification of changes on preview
 
   Generated with jb-plugin /ship
   EOF
@@ -46,12 +53,7 @@ Based on the above context, execute the full deployment pipeline:
   ```
 - Output the PR URL
 
-### Step 4: Monitor Deployment
-- Spawn a background agent using the `deployment-monitor` agent type
-- Pass it the branch name and PR URL so it can monitor the Vercel deployment
-- Tell the agent: "Monitor the Vercel deployment for branch '<branch>' (PR: <url>). Poll `gh pr checks` every 30 seconds. If deployment fails, fetch Vercel build logs, fix the code, commit, push, and retry (max 3 attempts). If all checks pass, notify that the PR is ready to merge."
-
 ### Important
-- You MUST do Steps 1-3 in a single message using parallel tool calls where possible
+- Do NOT create a PR until the user has tested the preview and confirmed it's good
 - Do NOT commit .env files, credentials, or secrets
 - If on the `main` branch, warn the user and ask them to switch to a feature branch first — do NOT proceed
