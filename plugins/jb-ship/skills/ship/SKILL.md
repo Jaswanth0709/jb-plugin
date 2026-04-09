@@ -80,4 +80,7 @@ Based on the above context, execute the full deployment pipeline:
 - Do NOT create a PR until the user confirms they are ready
 - Do NOT auto-merge unless the user explicitly agrees
 - Do NOT commit .env files, credentials, or secrets
-- If on the `main` branch, warn the user and ask them to switch to a feature branch first — do NOT proceed
+- If on the `main` branch, auto-create a feature branch before proceeding:
+  1. Look at the staged/unstaged changes to infer a short descriptive branch name (e.g., `fix-login-bug`, `add-pdf-export`, `update-deployment-monitor`)
+  2. Run `git checkout -b <branch-name>`
+  3. Continue with Step 1 as normal
