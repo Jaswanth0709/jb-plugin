@@ -37,9 +37,14 @@ Based on the above context, execute the full deployment pipeline:
   - **STOP HERE and wait** for the background agent to complete and for the user to test the preview
   - Only proceed to Step 4 after user confirms changes look good
 
-### Step 4: Create PR
+### Step 4: Ask if ready for production deployment
 - If Vercel was configured, this step runs ONLY after the user has tested the preview and confirmed it looks good
-- If Vercel was NOT configured, proceed to create the PR immediately
+- If Vercel was NOT configured, proceed immediately
+- Ask the user: "Ready for production deployment? Let me know and I'll create the PR."
+- **Wait for the user's response. Do NOT proceed until they say yes.**
+
+### Step 5: Create PR
+- Only proceed here after the user confirmed yes in Step 4
 - Check the "Existing PRs" context above
 - If a PR already exists for this branch, skip PR creation and note the existing PR URL
 - If no PR exists, create one:
@@ -57,8 +62,22 @@ Based on the above context, execute the full deployment pipeline:
   )"
   ```
 - Output the PR URL
+- Then ask: "PR created! Do you want to review and merge it yourself, or should I auto-merge it?"
+- **Wait for the user's response before proceeding**
+
+### Step 6: Merge (only if user asked for auto-merge)
+- Only proceed here if the user explicitly asked you to auto-merge
+- Merge the PR:
+  ```bash
+  gh pr merge <pr-number> --squash --delete-branch
+  ```
+- If Vercel is configured, spawn a background agent using the `deployment-monitor` agent type to monitor the production deployment on `main`
+- Tell the agent: "Monitor the Vercel production deployment for branch 'main' after PR merge. Poll every 30 seconds. If deployment succeeds, open the production URL in the browser and report success. If deployment fails, report the error details to the user."
+- If user said they'll review it themselves, just say: "PR is ready for your review." and stop
 
 ### Important
-- Do NOT create a PR until the user has tested the preview and confirmed it's good
+- Ask ONE question at a time — never combine multiple questions in one message
+- Do NOT create a PR until the user confirms they are ready
+- Do NOT auto-merge unless the user explicitly agrees
 - Do NOT commit .env files, credentials, or secrets
 - If on the `main` branch, warn the user and ask them to switch to a feature branch first — do NOT proceed
