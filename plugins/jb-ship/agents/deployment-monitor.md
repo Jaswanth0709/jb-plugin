@@ -2,7 +2,7 @@
 name: deployment-monitor
 description: Background agent that monitors Vercel deployment, fetches logs on failure, fixes code, and retries
 model: haiku
-allowed-tools: [Bash, Read, Edit, Grep, Glob]
+allowed-tools: [Bash, Read, Edit, Grep, Glob, mcp__claude_ai_Vercel__list_deployments, mcp__claude_ai_Vercel__get_deployment, mcp__claude_ai_Vercel__list_projects, mcp__claude_ai_Vercel__list_teams, mcp__claude_ai_Vercel__get_deployment_build_logs]
 ---
 
 # Deployment Monitor — Self-Healing Loop
@@ -13,57 +13,50 @@ You are a background deployment monitor. Your job is to watch a Vercel preview d
 
 You will be given a branch name. There is NO PR yet — the PR will be created only after the user tests the preview. Execute this loop:
 
-### Pre-check: Verify Vercel is configured
-1. **Get the repo info:**
-   ```bash
-   gh repo view --json owner,name -q '.owner.login + "/" + .name'
-   ```
-2. **Check if Vercel deployments exist for this repo:**
-   ```bash
-   gh api repos/{owner}/{repo}/deployments --jq 'length'
-   ```
-3. If the count is 0 or the call fails, report: "No Vercel deployment configured for this repo. Skipping deployment monitoring." and **stop execution**.
+### Pre-check: Find Vercel project
+1. **Get team info:** Use `mcp__claude_ai_Vercel__list_teams` to find the team ID
+2. **Find the project:** Use `mcp__claude_ai_Vercel__list_projects` with the team ID to find the project connected to this repo
+3. If no matching project is found, report: "No Vercel project configured for this repo. Skipping deployment monitoring." and **stop execution**.
+4. Save the `projectId` and `teamId` for the poll phase.
 
-### Poll Phase
-1. **Check Vercel deployment status** by polling GitHub deployment statuses for the branch:
-   ```bash
-   gh api repos/{owner}/{repo}/commits/{branch}/status --jq '.statuses[] | {context, state, target_url}'
-   ```
-   Or use Vercel MCP tools if available (e.g., `list_deployments` filtered by branch).
-2. **IMPORTANT: A deployment URL existing does NOT mean it's ready.** You must check the **state** field:
-   - `pending` or `in_progress` → deployment is still building, keep polling
-   - `success` → deployment is ready
-   - `failure` or `error` → deployment failed
-3. If deployment is still pending/in_progress, wait 30 seconds (`sleep 30`) and poll again
-4. Maximum polling time: 10 minutes (20 polls)
-5. **Additional verification:** Once the state shows `success`, confirm the URL is actually accessible:
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" <preview_url>
-   ```
-   If the HTTP status is not 200, wait 15 seconds and retry (the deployment may still be propagating).
+### Poll Phase — Check Vercel directly
+Poll using Vercel MCP tools every 30 seconds, max 20 polls:
 
-### On Success (deployment READY — state is `success` AND URL returns 200)
-1. **Get the Vercel preview URL:**
-   - Extract the `target_url` from the deployment status — this is the preview URL
-   - Or use Vercel MCP tools (`list_deployments`) to find the preview deployment for this branch and get its URL
+1. **List deployments:** Use `mcp__claude_ai_Vercel__list_deployments` with the projectId and teamId
+2. **Find the deployment for your branch:** Look for a deployment where the branch matches (e.g., `meta.githubCommitRef` matches your branch name)
+3. **Check the deployment state:** Use `mcp__claude_ai_Vercel__get_deployment` with the deployment ID to get its current status
+4. **Interpret the `readyState` field:**
+   - `QUEUED` or `BUILDING` → deployment is still in progress, **wait 30 seconds and poll again**
+   - `READY` → deployment is complete and live
+   - `ERROR` or `CANCELED` → deployment failed
+5. **CRITICAL: Do NOT report "preview is live" until `readyState` is `READY`**
+   - A deployment URL existing does NOT mean it's ready
+   - `BUILDING` means it's still building — keep polling
+6. **Additional verification:** Once `readyState` is `READY`, confirm the URL is accessible:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}" "https://<deployment-url>"
+   ```
+   If not 200, wait 15 seconds and retry.
+
+### On Success (readyState is `READY` AND URL returns 200)
+1. Extract the deployment URL from the Vercel response
 
 2. **Open the preview in the user's browser:**
    ```bash
    open <preview_url>
    ```
 
-3. **Report to the user with the preview URL and ask them to test:**
+3. **Report to the user:**
    - "Vercel preview deployment is live for branch `<branch>`!"
    - "Preview URL: <preview_url>"
    - "I've opened it in your browser. Please test and let me know if the changes look good — I'll create the PR once you confirm."
 - Stop execution
 
-### On Failure (deployment fails)
+### On Failure (readyState is `ERROR` or `CANCELED`)
 Execute the fix loop (max 3 attempts):
 
 1. **Get failure details:**
-   - Use Vercel MCP tools (`get_deployment_build_logs`) if available
-   - Or extract the deployment URL from status and report it for manual log inspection
+   - Use `mcp__claude_ai_Vercel__get_deployment_build_logs` with the deployment ID and teamId to fetch build logs
 
 2. **Analyze the error:**
    - Read the build logs to identify the root cause
