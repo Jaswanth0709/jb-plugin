@@ -29,11 +29,20 @@ You will be given a branch name. There is NO PR yet — the PR will be created o
    ```bash
    gh api repos/{owner}/{repo}/commits/{branch}/status --jq '.statuses[] | {context, state, target_url}'
    ```
-   Or check using Vercel MCP tools if available (e.g., `list_deployments` filtered by branch).
+   Or use Vercel MCP tools if available (e.g., `list_deployments` filtered by branch).
+2. **IMPORTANT: A deployment URL existing does NOT mean it's ready.** You must check the **state** field:
+   - `pending` or `in_progress` → deployment is still building, keep polling
+   - `success` → deployment is ready
+   - `failure` or `error` → deployment failed
 3. If deployment is still pending/in_progress, wait 30 seconds (`sleep 30`) and poll again
 4. Maximum polling time: 10 minutes (20 polls)
+5. **Additional verification:** Once the state shows `success`, confirm the URL is actually accessible:
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}" <preview_url>
+   ```
+   If the HTTP status is not 200, wait 15 seconds and retry (the deployment may still be propagating).
 
-### On Success (deployment ready)
+### On Success (deployment READY — state is `success` AND URL returns 200)
 1. **Get the Vercel preview URL:**
    - Extract the `target_url` from the deployment status — this is the preview URL
    - Or use Vercel MCP tools (`list_deployments`) to find the preview deployment for this branch and get its URL
