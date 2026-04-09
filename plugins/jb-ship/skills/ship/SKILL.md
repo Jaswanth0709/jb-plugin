@@ -13,6 +13,7 @@ allowed-tools: [Bash, Agent]
 - Current branch: !`git branch --show-current`
 - Recent commits: !`git log --oneline -10`
 - Existing PRs for this branch: !`gh pr list --head $(git branch --show-current) --json number,title,url 2>/dev/null || echo "none"`
+- Vercel connected: !`gh api repos/$(gh repo view --json owner,name -q '.owner.login + "/" + .name')/deployments --jq 'length' 2>/dev/null || echo "0"`
 
 ## Your task
 
@@ -27,14 +28,18 @@ Based on the above context, execute the full deployment pipeline:
 - Push to the current branch with `-u` flag: `git push -u origin <branch>`
 - If already up to date, continue to Step 3
 
-### Step 3: Monitor Preview Deployment
-- Spawn a background agent using the `deployment-monitor` agent type
-- Pass it the branch name so it can monitor the Vercel preview deployment
-- Tell the agent: "Monitor the Vercel preview deployment for branch '<branch>'. Poll every 30 seconds using `gh api repos/{owner}/{repo}/deployments` or check Vercel deployment status. If deployment fails, fetch build logs, fix the code, commit, push, and retry (max 3 attempts). If deployment succeeds, extract the Vercel preview URL and share it with the user. Ask them to test the preview to verify their changes work correctly."
-- **STOP HERE and wait** for the background agent to complete and for the user to test the preview
+### Step 3: Monitor Preview Deployment (only if Vercel is configured)
+- Check the "Vercel connected" context above — if the deployment count is "0" or the check failed, **skip this step** and go directly to Step 4
+- If Vercel IS configured:
+  - Spawn a background agent using the `deployment-monitor` agent type
+  - Pass it the branch name so it can monitor the Vercel preview deployment
+  - Tell the agent: "Monitor the Vercel preview deployment for branch '<branch>'. Poll every 30 seconds using `gh api repos/{owner}/{repo}/deployments` or check Vercel deployment status. If deployment fails, fetch build logs, fix the code, commit, push, and retry (max 3 attempts). If deployment succeeds, extract the Vercel preview URL and share it with the user. Ask them to test the preview to verify their changes work correctly."
+  - **STOP HERE and wait** for the background agent to complete and for the user to test the preview
+  - Only proceed to Step 4 after user confirms changes look good
 
-### Step 4: Create PR (only after user confirms changes look good)
-- This step runs ONLY after the user has tested the preview and confirmed it looks good
+### Step 4: Create PR
+- If Vercel was configured, this step runs ONLY after the user has tested the preview and confirmed it looks good
+- If Vercel was NOT configured, proceed to create the PR immediately
 - Check the "Existing PRs" context above
 - If a PR already exists for this branch, skip PR creation and note the existing PR URL
 - If no PR exists, create one:

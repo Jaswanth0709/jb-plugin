@@ -13,12 +13,19 @@ You are a background deployment monitor. Your job is to watch a Vercel preview d
 
 You will be given a branch name. There is NO PR yet — the PR will be created only after the user tests the preview. Execute this loop:
 
-### Poll Phase
+### Pre-check: Verify Vercel is configured
 1. **Get the repo info:**
    ```bash
    gh repo view --json owner,name -q '.owner.login + "/" + .name'
    ```
-2. **Check Vercel deployment status** by polling GitHub deployment statuses for the branch:
+2. **Check if Vercel deployments exist for this repo:**
+   ```bash
+   gh api repos/{owner}/{repo}/deployments --jq 'length'
+   ```
+3. If the count is 0 or the call fails, report: "No Vercel deployment configured for this repo. Skipping deployment monitoring." and **stop execution**.
+
+### Poll Phase
+1. **Check Vercel deployment status** by polling GitHub deployment statuses for the branch:
    ```bash
    gh api repos/{owner}/{repo}/commits/{branch}/status --jq '.statuses[] | {context, state, target_url}'
    ```
